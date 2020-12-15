@@ -5,6 +5,7 @@
 # Created by: PyQt5 UI code generator 5.9.2
 #
 # WARNING! All changes made in this file will be lost!
+from handle.worker import *
 import handle.main as handle
 from PyQt5 import QtCore,QtGui,QtWidgets
 from PyQt5.QtCore import *
@@ -136,7 +137,7 @@ class Ui_Form(QtWidgets.QMainWindow):
 
         self.retranslateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
-        
+        self.threadpool = QThreadPool()
         ## Event 
         self.load_data()
         self.btnOpen.clicked.connect(self.open_file)
@@ -163,6 +164,7 @@ class Ui_Form(QtWidgets.QMainWindow):
             item = QTableWidgetItem()
             item.setText(header[x])
             self.tableResult.setHorizontalHeaderItem(x, item)
+        self.tableResult.horizontalHeader().setStretchLastSection(True)
             
     
     def open_file(self):
@@ -179,8 +181,14 @@ class Ui_Form(QtWidgets.QMainWindow):
             encrypt = self.radioEncrypt.isChecked()
             key = self.dialogKey()
             if(key != None):
-                time = handle.sequential(cipher,encrypt,key,self.file_open,self.file_save)
-                self.lineSequent.setText(str(time)+ " ms")
+                worker = Worker(handle.sequential,cipher=cipher,encrypt=encrypt,key=key,input_file=self.file_open,output_file=self.file_save) # Any other args, kwargs are passed to the run function
+                worker.signals.result.connect(self.print_output_sequential)
+                worker.signals.finished.connect(self.thread_complete)
+                worker.signals.progress.connect(self.progress_fn_sequential)
+                # time = handle.sequential(cipher,encrypt,key,self.file_open,self.file_save)
+                # Execute
+                self.threadpool.start(worker)
+                
             else:
                 msg = QMessageBox() 
                 msg.setText("Require choose key for cipher!!!")
@@ -197,8 +205,13 @@ class Ui_Form(QtWidgets.QMainWindow):
             encrypt = self.radioEncrypt.isChecked()
             key = self.dialogKey()
             if(key != None):
-                time = handle.parallel(cipher,encrypt,key,self.file_open,self.file_save,thread)
-                self.lineParallel.setText(str(time)+ " ms")
+                worker = Worker(handle.parallel,cipher=cipher,encrypt=encrypt,key=key,input_file=self.file_open,output_file=self.file_save,thread=thread) # Any other args, kwargs are passed to the run function
+                worker.signals.result.connect(self.print_output_parallel)
+                worker.signals.finished.connect(self.thread_complete)
+                worker.signals.progress.connect(self.progress_fn_parallel)
+                # time = handle.parallel(cipher,encrypt,key,self.file_open,self.file_save,thread)
+                # self.lineParallel.setText(str(time)+ " ms")
+                self.threadpool.start(worker)
             else:
                 msg = QMessageBox() 
                 msg.setText("Require choose key for cipher!!!")
@@ -246,6 +259,24 @@ class Ui_Form(QtWidgets.QMainWindow):
             return key
         else:
             return None               
+        
+    def progress_fn_sequential(self, n):
+        self.lineSequent.setText(str(n)+ "%")
+    
+    def progress_fn_parallel(self, n):
+         self.lineParallel.setText(str(n)+ "%")       
+
+
+    def print_output_sequential(self, s):
+        self.lineSequent.setText(str(s))
+        
+    def print_output_parallel(self, s):
+        self.lineParallel.setText(str(s))
+
+    def thread_complete(self):
+        print("THREAD COMPLETE!")
+        # self.lineSequent.setText(str(time)+ " ms")
+        
        
 
     def retranslateUi(self, Form):

@@ -35,55 +35,65 @@ class multithread_cipher (threading.Thread):
 
 def diff_times_in_seconds(t1, t2):
     diff = t2-t1
-    millis = diff.days * 24 * 60 * 60 * 1000
-    millis += diff.seconds * 1000
-    millis += diff.microseconds / 1000
-    return millis
+    # millis = diff.days * 24 * 60 * 60 * 1000
+    # millis += diff.seconds * 1000
+    # millis += diff.microseconds / 1000
+    # return millis
+    return "{}".format(diff)
 
 
-def sequential(cipher,encrypt,key,input_file,output_file):
+def sequential(cipher,encrypt,key,input_file,output_file,progress_callback,**kwargs):
+    progress_callback.emit(0)
     _string = open(input_file, 'r').read()
-    
     _time_begin = datetime.today()
     _cipher = ""
+    progress_callback.emit(25)
     ## Type Of Cipher
     if(cipher == "Ceasar"):
-        _cipher = ceasar.encrypt(_string,key) if (encrypt) else ceasar.decrypt(_string,key)
+        _cipher = ceasar.encrypt(_string,int(key)) if (encrypt) else ceasar.decrypt(_string,int(key))
     elif cipher == "Vigenere":
         big_key = key * (len(_string) // len(key)) + key[:len(_string) % len(key)]
         _cipher = vigenere.encrypt(_string,big_key) if (encrypt) else vigenere.decrypt(_string,big_key)
-    else:
-        print("nothing")
+    progress_callback.emit(50)
     _time_end = datetime.today()
     output = open(output_file.replace(".txt", "")+"_sequential.txt", 'w')
+    progress_callback.emit(75)
     output.write(_cipher)
     output.close() 
+    progress_callback.emit(100)
     return diff_times_in_seconds(_time_begin,_time_end)
 
-def parallel(cipher,encrypt,key,input_file,output_file,thread):
+def parallel(cipher,encrypt,key,input_file,output_file,thread,progress_callback,**kwargs):
     threads = []
     results = []
     big_key = None
     big_keys = None
+    progress_callback.emit(0)
     _string = open(input_file, 'r').read()
+    progress_callback.emit(15)
     x = math.ceil(len(_string) / thread)
     strings = [(_string[i:i+x]) for i in range(0, len(_string), x)] 
     if cipher == "Vigenere":
         big_key = key * (len(_string) // len(key)) + key[:len(_string) % len(key)]
         big_keys = [(big_key[i:i+x]) for i in range(0, len(big_key), x)] 
-        
+    progress_callback.emit(25)
     for i in range(len(strings)):
         final_key = big_keys[i] if (cipher == "Vigenere") else key
         threads.append(multithread_cipher(i,cipher,encrypt,final_key,strings[i]))
-        threads[i].start()
     _time_begin = datetime.today()
     for i in range(len(threads)):
+       threads[i].start()
+    progress_callback.emit(50)
+    for i in range(len(threads)):
         results.append(threads[i].join())
-    _time_end = datetime.today()   
+    _time_end = datetime.today()
+    progress_callback.emit(75)   
     _cipher = "".join(results)
     output = open(output_file.replace(".txt", "")+"_parallel.txt", 'w')
+    progress_callback.emit(95)
     output.write(_cipher)
     output.close() 
+    progress_callback.emit(10)
     return diff_times_in_seconds(_time_begin,_time_end)
     
     
